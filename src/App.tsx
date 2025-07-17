@@ -5,8 +5,11 @@ import { StepIndicator } from './components/steps/StepIndicator'
 import { LinkedInInput } from './components/forms/LinkedInInput'
 import { JobDescriptionInput } from './components/forms/JobDescriptionInput'
 import { ProcessingStatus } from './components/processing/ProcessingStatus'
+import { CVPreview } from './components/preview/CVPreview'
 import { Toaster } from './components/ui/toaster'
 import { useToast } from './hooks/use-toast'
+import { generateMockCVData } from './utils/mockCVData'
+import { CVData } from './types'
 
 type AppStep = 'linkedin' | 'job' | 'processing' | 'preview'
 
@@ -23,6 +26,7 @@ function App() {
   const [linkedinUrl, setLinkedinUrl] = useState('')
   const [jobData, setJobData] = useState<any>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [cvData, setCvData] = useState<CVData | null>(null)
   const { toast } = useToast()
 
   const steps: ProcessingStep[] = [
@@ -94,7 +98,13 @@ function App() {
   const handleProcessingComplete = () => {
     setIsProcessing(false)
     updateStepStatus('processing', 'completed')
+    
+    // Generate mock CV data
+    const generatedCVData = generateMockCVData(linkedinUrl, jobData)
+    setCvData(generatedCVData)
+    
     setCurrentStep('preview')
+    updateStepStatus('preview', 'completed')
     
     toast({
       title: "CV Generated Successfully!",
@@ -105,6 +115,42 @@ function App() {
   const getCurrentStepIndex = () => {
     const stepMap = { linkedin: 0, job: 1, processing: 2, preview: 3 }
     return stepMap[currentStep]
+  }
+
+  const handleDownload = async (format: 'pdf' | 'docx') => {
+    try {
+      toast({
+        title: "Generating Download...",
+        description: `Creating your CV in ${format.toUpperCase()} format`,
+      })
+      
+      // Simulate download generation
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      // In a real implementation, this would call an API to generate the file
+      const filename = `${cvData?.profile.name.replace(/\s+/g, '_')}_CV.${format}`
+      
+      toast({
+        title: "Download Ready!",
+        description: `Your CV has been generated as ${filename}`,
+      })
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "There was an error generating your CV. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleTemplateChange = (template: string) => {
+    if (cvData) {
+      setCvData({ ...cvData, template })
+      toast({
+        title: "Template Updated",
+        description: `Switched to ${template} template`,
+      })
+    }
   }
 
   if (loading) {
@@ -171,24 +217,12 @@ function App() {
             />
           )}
 
-          {currentStep === 'preview' && (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">CV Generated Successfully!</h2>
-              <p className="text-gray-600 mb-8">Your tailored, ATS-optimized CV is ready</p>
-              
-              <div className="bg-white rounded-lg shadow-sm border p-8 max-w-2xl mx-auto">
-                <h3 className="text-lg font-semibold mb-4">Preview & Download will be available soon</h3>
-                <p className="text-gray-600">
-                  The CV preview and download functionality is coming in the next update. 
-                  Your LinkedIn profile ({linkedinUrl}) and job description have been successfully processed.
-                </p>
-              </div>
-            </div>
+          {currentStep === 'preview' && cvData && (
+            <CVPreview 
+              cvData={cvData}
+              onDownload={handleDownload}
+              onTemplateChange={handleTemplateChange}
+            />
           )}
         </div>
       </main>
